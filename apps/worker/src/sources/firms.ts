@@ -1,9 +1,11 @@
 // NASA FIRMS active-fire / thermal-anomaly detections (VIIRS/MODIS). Free,
 // ungated beyond a free MAP_KEY. The Area CSV API serves up to 5 days per call:
 //   /api/area/csv/<MAP_KEY>/<SOURCE>/<west,south,east,north>/<dayRange>/<startDate>
-// NRT products cover only roughly the last ~2 months, so this is a recent-window
-// corroborating layer (fires/explosions, incl. refinery fires in Russia), not a
-// 6-month backfill. Includes agricultural fires — it is not a strike filter.
+// A corroborating layer (fires/explosions, incl. refinery fires in Russia), not a
+// strike filter — it includes agricultural fires. NRT (..._NRT) covers only the
+// last ~2 months; the SP archive (..._SP) covers older dates. To backfill a long
+// window set FIRMS_SOURCES to include both NRT and SP — the dedup key is keyed on
+// satellite (not the NRT/SP stream) so the same detection from both collapses.
 
 export interface RawThermal {
   externalId: string;
@@ -45,6 +47,11 @@ export class FirmsThermalSource {
         const days = Math.min(MAX_DAYS_PER_CALL, Math.max(1, remaining));
         const url = `${AREA_BASE}/${this.mapKey}/${source}/${BBOX}/${days}/${startStr}`;
         const resp = await fetch(url);
+        if (resp.status === 404) {
+          // A source may not cover this date range (NRT vs SP); skip the chunk.
+          cur.setUTCDate(cur.getUTCDate() + days);
+          continue;
+        }
         if (!resp.ok) {
           throw new Error(`FIRMS request failed: ${resp.status} ${resp.statusText}`);
         }
@@ -82,9 +89,12 @@ export class FirmsThermalSource {
       const date = c[iDate] ?? "";
       const time = (c[iTime] ?? "").padStart(4, "0"); // HHMM (UTC)
       if (date.length < 10) continue;
+      // Key on satellite (not the NRT/SP source) so the same observation from
+      // both the real-time and archive streams dedupes.
+      const sat = c[iSat] || "x";
 
       out.push({
-        externalId: `firms-${source}-${date}-${time}-${lat}-${lon}`,
+        externalId: `firms-${sat}-${date}-${time}-${lat}-${lon}`,
         detectedAt: new Date(`${date}T${time.slice(0, 2)}:${time.slice(2, 4)}:00Z`),
         lat,
         lon,
