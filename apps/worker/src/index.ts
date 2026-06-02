@@ -8,12 +8,14 @@ import { DeepStateGithubControlSource } from "./sources/deepstate-github.js";
 import { GdeltEventSource } from "./sources/gdelt.js";
 import { MockControlSource, MockEventSource } from "./sources/mock.js";
 import { UcdpEventSource } from "./sources/ucdp.js";
+import { WarSpottingEventSource } from "./sources/warspotting.js";
 import type { ControlSource, EventSource } from "./sources/types.js";
 
 function buildEventSource(): EventSource {
   const which = process.env.EVENT_SOURCE ?? "mock";
   if (which === "gdelt") return new GdeltEventSource();
   if (which === "ucdp") return new UcdpEventSource();
+  if (which === "warspotting") return new WarSpottingEventSource();
   if (which === "acled") {
     const email = process.env.ACLED_EMAIL;
     const password = process.env.ACLED_PASSWORD;
