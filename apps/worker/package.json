@@ -1,0 +1,25 @@
+{
+  "name": "@ukraine-tracker/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node --env-file-if-exists=.env dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "ingest": "tsx --env-file-if-exists=.env src/index.ts",
+    "seed:mock": "EVENT_SOURCE=mock CONTROL_SOURCE=mock tsx --env-file-if-exists=.env src/seed-mock.ts"
+  },
+  "dependencies": {
+    "@ukraine-tracker/shared": "workspace:*",
+    "fflate": "^0.8.3",
+    "pg": "^8.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "ukraine-conflict-tracker",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Ukraine/Russia conflict tracker — monorepo root",
+  "packageManager": "pnpm@11.2.2",
+  "engines": {
+    "node": ">=20.18"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel --stream dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "db:migrate": "pnpm --filter @ukraine-tracker/api db:migrate",
+    "seed:mock": "pnpm --filter @ukraine-tracker/worker seed:mock",
+    "clean": "pnpm -r exec rm -rf dist .tsbuildinfo"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
