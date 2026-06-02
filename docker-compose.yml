@@ -29,14 +29,28 @@ services:
       timeout: 5s
       retries: 10
 
+  # One-shot schema migration. api and worker wait for this to finish so neither
+  # touches the DB before the tables exist (fixes a first-boot/reboot race).
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-ukraine}:${DB_PASSWORD}@db:5432/${DB_NAME:-ukraine_tracker}
+    restart: "no"
+    command: pnpm --filter @ukraine-tracker/api db:migrate
+
   api:
     build:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql://${DB_USER:-ukraine}:${DB_PASSWORD}@db:5432/${DB_NAME:-ukraine_tracker}
       PORT: "6732"
@@ -44,7 +58,7 @@ services:
       CORS_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost}
     expose:
       - "6732"
-    command: sh -c "pnpm --filter @ukraine-tracker/api db:migrate && pnpm --filter @ukraine-tracker/api serve"
+    command: pnpm --filter @ukraine-tracker/api serve
 
   worker:
     build:
@@ -52,8 +66,8 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql://${DB_USER:-ukraine}:${DB_PASSWORD}@db:5432/${DB_NAME:-ukraine_tracker}
       INGEST_MODE: daily
