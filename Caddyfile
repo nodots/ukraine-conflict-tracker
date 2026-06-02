@@ -1,6 +1,8 @@
-# Set PUBLIC_DOMAIN to your domain for automatic HTTPS (Let's Encrypt). Falls
-# back to :80 for local testing when PUBLIC_DOMAIN is unset.
-{$PUBLIC_DOMAIN::80} {
+# SITE_ADDRESS is set by docker-compose from PUBLIC_DOMAIN, defaulting to :80
+# when no domain is configured (a real domain enables automatic HTTPS). The
+# default is resolved in compose because Caddy's {$VAR:default} only applies when
+# the variable is unset, not when set-but-empty.
+{$SITE_ADDRESS} {
 	encode gzip
 
 	# API → api container (path is preserved: /api/... → api:6732/api/...)

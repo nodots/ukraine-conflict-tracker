@@ -74,7 +74,9 @@ services:
     depends_on:
       - api
     environment:
-      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-}
+      # PUBLIC_DOMAIN -> the Caddy site address; blank/unset falls back to :80
+      # (plain HTTP). A real domain makes Caddy auto-provision HTTPS.
+      SITE_ADDRESS: ${PUBLIC_DOMAIN:-:80}
     ports:
       - "80:80"
       - "443:443"
