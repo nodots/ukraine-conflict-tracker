@@ -36,3 +36,6 @@ pgdata/
 
 # Claude harness state
 .claude/
+
+# Local-only: contains personal account details
+docs/acled-access-request.md
