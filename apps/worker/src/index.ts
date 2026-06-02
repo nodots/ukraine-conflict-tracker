@@ -11,8 +11,17 @@ import { UcdpEventSource } from "./sources/ucdp.js";
 import { WarSpottingEventSource } from "./sources/warspotting.js";
 import type { ControlSource, EventSource } from "./sources/types.js";
 
-function buildEventSource(): EventSource {
-  const which = process.env.EVENT_SOURCE ?? "mock";
+// EVENT_SOURCE may name one source or a comma-separated list (e.g.
+// "gdelt,warspotting") to ingest several layers in a single run. Control and
+// thermal still run once per invocation regardless.
+function eventSourceNames(): string[] {
+  return (process.env.EVENT_SOURCE ?? "mock")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function buildEventSource(which: string): EventSource {
   if (which === "gdelt") return new GdeltEventSource();
   if (which === "ucdp") return new UcdpEventSource();
   if (which === "warspotting") return new WarSpottingEventSource();
@@ -37,26 +46,34 @@ function buildControlSource(): ControlSource {
 }
 
 async function runEvents(from: Date, to: Date): Promise<void> {
-  const source = buildEventSource();
-  const runId = await startRun(`events:${source.name}`);
-  try {
-    const events = await source.fetchEvents(from, to);
-    const counts = await ingestEvents(events);
-    await finishRun(runId, {
-      status: "success",
-      recordsSeen: counts.seen,
-      recordsInserted: counts.inserted,
-      recordsSkipped: counts.skipped,
-    });
-    console.log(
-      `events[${source.name}] seen=${counts.seen} inserted=${counts.inserted} skipped=${counts.skipped}`,
-    );
-  } catch (err) {
-    await finishRun(runId, {
-      status: "failure",
-      message: err instanceof Error ? err.message : String(err),
-    });
-    throw err;
+  // Run each configured source independently so one source failing (e.g. an
+  // upstream outage) doesn't skip the others; surface a combined error at the
+  // end so the exit code still reflects any failure.
+  const failures: string[] = [];
+  for (const which of eventSourceNames()) {
+    const source = buildEventSource(which);
+    const runId = await startRun(`events:${source.name}`);
+    try {
+      const events = await source.fetchEvents(from, to);
+      const counts = await ingestEvents(events);
+      await finishRun(runId, {
+        status: "success",
+        recordsSeen: counts.seen,
+        recordsInserted: counts.inserted,
+        recordsSkipped: counts.skipped,
+      });
+      console.log(
+        `events[${source.name}] seen=${counts.seen} inserted=${counts.inserted} skipped=${counts.skipped}`,
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await finishRun(runId, { status: "failure", message });
+      console.error(`events[${source.name}] failed: ${message}`);
+      failures.push(source.name);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(`event ingest failed for: ${failures.join(", ")}`);
   }
 }
 

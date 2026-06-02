@@ -71,7 +71,9 @@ services:
     environment:
       DATABASE_URL: postgresql://${DB_USER:-ukraine}:${DB_PASSWORD}@db:5432/${DB_NAME:-ukraine_tracker}
       INGEST_MODE: daily
-      EVENT_SOURCE: gdelt
+      # Comma-separated list — ingest GDELT strikes and WarSpotting equipment
+      # losses each cycle. Control + thermal still run once per invocation.
+      EVENT_SOURCE: gdelt,warspotting
       CONTROL_SOURCE: deepstate-github
       FIRMS_MAP_KEY: ${FIRMS_MAP_KEY:-}
       FIRMS_DAYS: "14"

@@ -31,8 +31,8 @@ automatically on first start (ports 80 and 443 must be open).
 docker compose up -d --build
 ```
 This starts PostGIS, runs DB migrations, brings up the API behind Caddy, and the
-worker begins ingesting (control + GDELT events + FIRMS thermal) on the
-`INGEST_INTERVAL` loop.
+worker begins ingesting (control + GDELT strikes + WarSpotting equipment losses
++ FIRMS thermal) on the `INGEST_INTERVAL` loop.
 
 ## 6. One-time historical backfill
 The loop runs in `daily` mode (recent days only). Pull the full window once:
