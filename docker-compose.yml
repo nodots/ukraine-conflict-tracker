@@ -1,0 +1,88 @@
+# Single-VPS deployment: PostGIS + API + ingestion worker + Caddy (web/TLS).
+# Copy deploy.env.example to .env and fill it in, then: docker compose up -d
+#
+# One-time historical backfill (after the stack is up):
+#   docker compose run --rm -e INGEST_MODE=backfill -e BACKFILL_MONTHS=6 \
+#     worker pnpm --filter @ukraine-tracker/worker ingest
+# Occasional UCDP refresh (monthly cadence upstream):
+#   docker compose run --rm -e EVENT_SOURCE=ucdp \
+#     worker pnpm --filter @ukraine-tracker/worker ingest
+
+services:
+  db:
+    # Multi-arch (amd64 + arm64) PostGIS — a faithful build of postgis/postgis,
+    # so the stack runs on any VPS architecture. (Official postgis/postgis is
+    # amd64-only for this tag.)
+    image: imresamu/postgis:17-3.5
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-ukraine}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      POSTGRES_DB: ${DB_NAME:-ukraine_tracker}
+      # The app sets UTC per-connection; keep the server UTC too for consistency.
+      TZ: UTC
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ukraine} -d ${DB_NAME:-ukraine_tracker}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-ukraine}:${DB_PASSWORD}@db:5432/${DB_NAME:-ukraine_tracker}
+      PORT: "6732"
+      # Same-origin via Caddy, so CORS is moot; set it to the public origin anyway.
+      CORS_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost}
+    expose:
+      - "6732"
+    command: sh -c "pnpm --filter @ukraine-tracker/api db:migrate && pnpm --filter @ukraine-tracker/api serve"
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-ukraine}:${DB_PASSWORD}@db:5432/${DB_NAME:-ukraine_tracker}
+      INGEST_MODE: daily
+      EVENT_SOURCE: gdelt
+      CONTROL_SOURCE: deepstate-github
+      FIRMS_MAP_KEY: ${FIRMS_MAP_KEY:-}
+      FIRMS_DAYS: "14"
+      INGEST_INTERVAL: ${INGEST_INTERVAL:-86400}
+      NODE_OPTIONS: --max-old-space-size=2048
+    # Run once on start, then on the interval. ($$ escapes compose interpolation.)
+    command: sh -c "while true; do pnpm --filter @ukraine-tracker/worker ingest || true; sleep $$INGEST_INTERVAL; done"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

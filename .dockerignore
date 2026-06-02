@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+.git
+.github
+**/.env
+**/.env.local
+**/.env.*.local
+*.log
+.claude
+docs/acled-access-request.md
+.vite

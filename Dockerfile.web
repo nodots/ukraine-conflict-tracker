@@ -1,0 +1,23 @@
+# Web image: build the Vite SPA, then serve it from Caddy (auto-HTTPS) with
+# /api/* reverse-proxied to the api service (same origin → no CORS).
+FROM node:22-slim AS build
+RUN corepack enable
+WORKDIR /app
+
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/api/package.json apps/api/
+COPY apps/worker/package.json apps/worker/
+COPY apps/web/package.json apps/web/
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+# Same-origin API path; Caddy proxies /api to the api container.
+ARG VITE_API_BASE_URL=/api
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+RUN pnpm --filter @ukraine-tracker/shared build \
+ && pnpm --filter @ukraine-tracker/web build
+
+FROM caddy:2-alpine
+COPY Caddyfile /etc/caddy/Caddyfile
+COPY --from=build /app/apps/web/dist /srv

@@ -1,0 +1,17 @@
+# Set PUBLIC_DOMAIN to your domain for automatic HTTPS (Let's Encrypt). Falls
+# back to :80 for local testing when PUBLIC_DOMAIN is unset.
+{$PUBLIC_DOMAIN::80} {
+	encode gzip
+
+	# API → api container (path is preserved: /api/... → api:6732/api/...)
+	handle /api/* {
+		reverse_proxy api:6732
+	}
+
+	# Static SPA with client-side routing fallback.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
