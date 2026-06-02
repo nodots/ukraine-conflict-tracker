@@ -8,6 +8,9 @@ const TYPE_BASE_WEIGHT: Record<EventType, number> = {
   airstrike: 0.55,
   drone_strike: 0.4,
   shelling: 0.35,
+  // A confirmed equipment loss (destroyed vehicle/system) is a discrete, notable
+  // event but carries no fatality count, so it sits mid-low on the same scale.
+  equipment_loss: 0.4,
   other: 0.3,
 };
 

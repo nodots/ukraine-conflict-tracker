@@ -11,6 +11,7 @@ const createEventSchema = z.object({
     "missile_strike",
     "shelling",
     "airstrike",
+    "equipment_loss",
     "other",
   ]),
   eventTime: z.string(),

@@ -6,6 +6,7 @@ export const EVENT_COLORS: Record<EventType, string> = {
   missile_strike: "#ef4444", // red
   airstrike: "#fb923c", // orange
   shelling: "#60a5fa", // blue
+  equipment_loss: "#2dd4bf", // teal
   other: "#9ca3af", // gray
 };
 
@@ -14,6 +15,7 @@ export const EVENT_LABELS: Record<EventType, string> = {
   missile_strike: "Missile strike",
   airstrike: "Airstrike",
   shelling: "Shelling",
+  equipment_loss: "Equipment loss",
   other: "Other",
 };
 

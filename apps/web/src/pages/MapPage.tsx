@@ -202,6 +202,8 @@ export function MapPage() {
             EVENT_COLORS.airstrike,
             "shelling",
             EVENT_COLORS.shelling,
+            "equipment_loss",
+            EVENT_COLORS.equipment_loss,
             EVENT_COLORS.other,
           ],
           "circle-stroke-color": "rgba(0,0,0,0.6)",
