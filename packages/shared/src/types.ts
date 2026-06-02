@@ -97,11 +97,34 @@ export interface TimelineResponse {
   days: TimelineDay[];
 }
 
+// Satellite thermal anomaly (active fire detection) from NASA FIRMS — a
+// corroborating physical-signal layer, distinct from strike events.
+export interface ThermalAnomaly {
+  id: number;
+  detectedAt: string; // ISO timestamp (UTC)
+  lat: number;
+  lon: number;
+  frp: number | null; // fire radiative power, MW
+  confidence: string | null; // VIIRS: l/n/h; MODIS: 0-100
+  brightness: number | null; // brightness temperature, K
+  satellite: string | null;
+  sourceType: string;
+}
+
+export interface ThermalFeatureCollection {
+  type: "FeatureCollection";
+  features: Array<{
+    type: "Feature";
+    geometry: { type: "Point"; coordinates: [number, number] };
+    properties: Omit<ThermalAnomaly, "lat" | "lon">;
+  }>;
+}
+
 export interface StatsResponse {
   from: string;
   to: string;
   totalEvents: number;
   byType: Record<EventType, number>;
   totalFatalities: number;
-  netTerritoryChangeRuSqKm: number | null; // RU area at `to` minus RU area at `from`
+  netTerritoryChangeUaSqKm: number | null; // UA area at `to` minus UA area at `from` (positive = Ukraine regained territory)
 }

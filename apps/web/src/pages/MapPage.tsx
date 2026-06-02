@@ -15,6 +15,7 @@ import {
   fetchEvents,
   fetchFrontline,
   fetchStats,
+  fetchThermal,
   fetchTimeline,
 } from "../api.js";
 import { Legend, type LayerToggles } from "../components/Legend.js";
@@ -38,12 +39,14 @@ const SRC = {
   controlFill: "control-fill",
   frontline: "frontline",
   strikes: "strikes",
+  thermal: "thermal",
 } as const;
 
 const LYR = {
   controlFill: "control-fill-layer",
   controlOutline: "control-outline-layer",
   frontline: "frontline-layer",
+  thermal: "thermal-layer",
   strikesHeat: "strikes-heat-layer",
   strikesCircle: "strikes-circle-layer",
 } as const;
@@ -52,6 +55,28 @@ const EMPTY_FC: GeoJSON.FeatureCollection = {
   type: "FeatureCollection",
   features: [],
 };
+
+// Layer visibility preferences persist across reloads via localStorage. Saved
+// values are merged over the defaults so newly added layers still appear when an
+// older preference set is loaded.
+const TOGGLES_KEY = "uct.layerToggles";
+const DEFAULT_TOGGLES: LayerToggles = {
+  control: true,
+  frontline: true,
+  strikes: true,
+  heatmap: false,
+  thermal: false,
+};
+
+function loadToggles(): LayerToggles {
+  try {
+    const raw = localStorage.getItem(TOGGLES_KEY);
+    if (!raw) return DEFAULT_TOGGLES;
+    return { ...DEFAULT_TOGGLES, ...(JSON.parse(raw) as Partial<LayerToggles>) };
+  } catch {
+    return DEFAULT_TOGGLES;
+  }
+}
 
 interface SelectedStrike {
   eventType: EventType;
@@ -79,12 +104,7 @@ export function MapPage() {
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(4); // steps per second
-  const [toggles, setToggles] = useState<LayerToggles>({
-    control: true,
-    frontline: true,
-    strikes: true,
-    heatmap: false,
-  });
+  const [toggles, setToggles] = useState<LayerToggles>(loadToggles);
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [selected, setSelected] = useState<SelectedStrike | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -108,6 +128,7 @@ export function MapPage() {
       map.addSource(SRC.controlFill, { type: "geojson", data: EMPTY_FC });
       map.addSource(SRC.frontline, { type: "geojson", data: EMPTY_FC });
       map.addSource(SRC.strikes, { type: "geojson", data: EMPTY_FC });
+      map.addSource(SRC.thermal, { type: "geojson", data: EMPTY_FC });
 
       map.addLayer({
         id: LYR.controlFill,
@@ -137,6 +158,21 @@ export function MapPage() {
         type: "line",
         source: SRC.frontline,
         paint: { "line-color": "#ffffff", "line-width": 2.5, "line-opacity": 0.9 },
+      });
+      // Thermal anomalies (FIRMS): fiery dots sized/colored by fire radiative
+      // power, so large refinery/airfield fires stand out from small ag fires.
+      // Drawn under strikes so curated events stay on top. Off by default.
+      map.addLayer({
+        id: LYR.thermal,
+        type: "circle",
+        source: SRC.thermal,
+        layout: { visibility: "none" },
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["coalesce", ["get", "frp"], 0], 0, 2, 50, 6, 300, 13],
+          "circle-color": ["interpolate", ["linear"], ["coalesce", ["get", "frp"], 0], 0, "#fde047", 50, "#fb923c", 200, "#ef4444"],
+          "circle-opacity": 0.55,
+          "circle-blur": 0.3,
+        },
       });
       map.addLayer({
         id: LYR.strikesHeat,
@@ -235,8 +271,9 @@ export function MapPage() {
       fetchControl(currentDate, controller.signal),
       fetchFrontline(currentDate, controller.signal),
       fetchEvents({ from: win.from, to: win.to }, controller.signal),
+      fetchThermal({ from: win.from, to: win.to }, controller.signal),
     ])
-      .then(([control, frontline, events]) => {
+      .then(([control, frontline, events, thermal]) => {
         (map.getSource(SRC.controlFill) as maplibregl.GeoJSONSource | undefined)?.setData(
           control as unknown as GeoJSON.FeatureCollection,
         );
@@ -247,6 +284,9 @@ export function MapPage() {
         );
         (map.getSource(SRC.strikes) as maplibregl.GeoJSONSource | undefined)?.setData(
           events as unknown as GeoJSON.FeatureCollection,
+        );
+        (map.getSource(SRC.thermal) as maplibregl.GeoJSONSource | undefined)?.setData(
+          thermal as unknown as GeoJSON.FeatureCollection,
         );
         setError(null);
       })
@@ -271,6 +311,15 @@ export function MapPage() {
     return () => controller.abort();
   }, [currentDate]);
 
+  // Persist layer preferences so they survive a reload.
+  useEffect(() => {
+    try {
+      localStorage.setItem(TOGGLES_KEY, JSON.stringify(toggles));
+    } catch {
+      // ignore storage failures (private mode, quota)
+    }
+  }, [toggles]);
+
   // Apply layer visibility toggles.
   useEffect(() => {
     if (!styleReady) return;
@@ -284,6 +333,7 @@ export function MapPage() {
     set(LYR.frontline, toggles.frontline);
     set(LYR.strikesCircle, toggles.strikes);
     set(LYR.strikesHeat, toggles.heatmap);
+    set(LYR.thermal, toggles.thermal);
   }, [styleReady, toggles]);
 
   // Playback: advance the date at `speed` steps per second; stop at the end.
@@ -357,7 +407,7 @@ export function MapPage() {
         }}
       >
         <Typography variant="caption" color="text.secondary">
-          Events: UCDP GED + GDELT · Control: DeepState · Basemap: OpenFreeMap
+          Events: UCDP GED + GDELT · Control: DeepState · Thermal: NASA FIRMS · Basemap: OpenFreeMap
         </Typography>
       </Box>
 

@@ -12,12 +12,11 @@ const connectionString =
   process.env.DATABASE_URL ??
   "postgresql://ukraine:ukraine@localhost:5432/ukraine_tracker";
 
-export const pool = new pg.Pool({ connectionString });
-
-// Pin every connection to UTC so day-bucketing (date_trunc on event_time in the
-// timeline query) is deterministic regardless of the host machine's timezone.
-pool.on("connect", (client) => {
-  client.query("SET TIME ZONE 'UTC'");
+// Pin every connection to UTC (via a server option, set at connect time with no
+// extra round-trip) so day-bucketing (date_trunc on event_time in the timeline
+// query) is deterministic regardless of the host machine's timezone.
+export const pool = new pg.Pool({
+  connectionString,
+  options: "-c timezone=UTC",
 });
-
 export const db = drizzle(pool, { schema });

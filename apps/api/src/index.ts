@@ -5,6 +5,7 @@ import { controlRouter } from "./routes/control.js";
 import { frontlineRouter } from "./routes/frontline.js";
 import { timelineRouter } from "./routes/timeline.js";
 import { statsRouter } from "./routes/stats.js";
+import { thermalRouter } from "./routes/thermal.js";
 import { adminRouter } from "./routes/admin.js";
 
 const app = express();
@@ -31,6 +32,7 @@ app.use("/api/control", controlRouter);
 app.use("/api/frontline", frontlineRouter);
 app.use("/api/timeline", timelineRouter);
 app.use("/api/stats", statsRouter);
+app.use("/api/thermal", thermalRouter);
 app.use("/api/admin", adminRouter);
 
 // Centralized error handler — keeps route handlers free of try/catch noise.

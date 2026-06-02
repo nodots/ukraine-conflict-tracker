@@ -86,23 +86,23 @@ export function StatsPanel({ stats, windowLabel }: StatsPanelProps) {
 
           <Stack direction="row" justifyContent="space-between">
             <Typography variant="body2" color="text.secondary">
-              Net RU territory
+              Net UA territory
             </Typography>
             <Typography
               variant="body2"
               sx={{
                 color:
-                  stats.netTerritoryChangeRuSqKm === null
+                  stats.netTerritoryChangeUaSqKm === null
                     ? "text.secondary"
-                    : stats.netTerritoryChangeRuSqKm > 0
-                      ? "#f87171"
-                      : "#4ade80",
+                    : stats.netTerritoryChangeUaSqKm > 0
+                      ? "#4ade80"
+                      : "#f87171",
               }}
             >
-              {stats.netTerritoryChangeRuSqKm === null
+              {stats.netTerritoryChangeUaSqKm === null
                 ? "—"
-                : `${stats.netTerritoryChangeRuSqKm > 0 ? "+" : ""}${formatArea(
-                    stats.netTerritoryChangeRuSqKm,
+                : `${stats.netTerritoryChangeUaSqKm > 0 ? "+" : ""}${formatArea(
+                    stats.netTerritoryChangeUaSqKm,
                   )}`}
             </Typography>
           </Stack>

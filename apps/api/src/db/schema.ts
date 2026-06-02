@@ -106,6 +106,36 @@ export const frontlines = pgTable(
   ],
 );
 
+// Satellite thermal anomalies (active fire detections) from NASA FIRMS. A
+// corroborating physical-signal layer (fires/explosions, incl. refinery fires
+// deep in Russia), separate from curated strike events.
+export const thermalAnomalies = pgTable(
+  "thermal_anomalies",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    detectedAt: timestamp("detected_at", { withTimezone: true }).notNull(),
+    location: geographyPoint("location"),
+    lat: doublePrecision("lat").notNull(),
+    lon: doublePrecision("lon").notNull(),
+    frp: doublePrecision("frp"),
+    confidence: text("confidence"),
+    brightness: doublePrecision("brightness"),
+    satellite: text("satellite"),
+    instrument: text("instrument"),
+    daynight: text("daynight"),
+    sourceType: text("source_type").notNull(),
+    externalId: text("external_id").unique(),
+    rawPayload: jsonb("raw_payload"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (table) => [
+    index("idx_thermal_location").using("gist", table.location),
+    index("idx_thermal_time").on(table.detectedAt),
+  ],
+);
+
 // Ingestion audit log — one row per source run.
 export const ingestionRuns = pgTable("ingestion_runs", {
   id: bigserial("id", { mode: "number" }).primaryKey(),

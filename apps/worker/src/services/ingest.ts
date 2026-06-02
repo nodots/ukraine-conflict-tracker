@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { deriveSeverity } from "@ukraine-tracker/shared";
 import { pool } from "../db.js";
+import type { RawThermal } from "../sources/firms.js";
 import type { RawControlArea, RawEvent } from "../sources/types.js";
 
 // Internationally-recognized Ukraine boundary (incl. Crimea), loaded once. Used
@@ -87,6 +88,39 @@ export async function ingestEvents(events: RawEvent[]): Promise<IngestCounts> {
     if (rowCount && rowCount > 0) inserted++;
   }
   return { seen: events.length, inserted, skipped };
+}
+
+// Upsert FIRMS thermal anomalies. Idempotent on the synthetic external_id
+// (satellite + acq time + coordinates) so overlapping windows don't duplicate.
+export async function ingestThermal(rows: RawThermal[]): Promise<IngestCounts> {
+  let inserted = 0;
+  for (const t of rows) {
+    if (!Number.isFinite(t.lat) || !Number.isFinite(t.lon)) continue;
+    const { rowCount } = await pool.query(
+      `INSERT INTO thermal_anomalies
+         (detected_at, location, lat, lon, frp, confidence, brightness,
+          satellite, instrument, daynight, source_type, external_id, raw_payload)
+       VALUES
+         ($1, ST_SetSRID(ST_MakePoint($3, $2), 4326), $2, $3, $4, $5, $6,
+          $7, $8, $9, 'firms', $10, $11)
+       ON CONFLICT (external_id) DO NOTHING`,
+      [
+        t.detectedAt.toISOString(),
+        t.lat,
+        t.lon,
+        t.frp,
+        t.confidence,
+        t.brightness,
+        t.satellite,
+        t.instrument,
+        t.daynight,
+        t.externalId,
+        t.rawPayload === undefined ? null : JSON.stringify(t.rawPayload),
+      ],
+    );
+    if (rowCount && rowCount > 0) inserted++;
+  }
+  return { seen: rows.length, inserted, skipped: rows.length - inserted };
 }
 
 function sourceTypeFor(e: RawEvent): string {

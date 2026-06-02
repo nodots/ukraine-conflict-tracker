@@ -1,6 +1,7 @@
 import { pool } from "./db.js";
-import { ingestControl, ingestEvents } from "./services/ingest.js";
+import { ingestControl, ingestEvents, ingestThermal } from "./services/ingest.js";
 import { finishRun, startRun } from "./services/runs.js";
+import { FirmsThermalSource } from "./sources/firms.js";
 import { AcledEventSource } from "./sources/acled.js";
 import { DeepStateControlSource } from "./sources/deepstate.js";
 import { DeepStateGithubControlSource } from "./sources/deepstate-github.js";
@@ -86,6 +87,38 @@ async function runControl(from: Date, to: Date): Promise<void> {
   }
 }
 
+// FIRMS thermal is windowed independently: NRT only covers ~the last 2 months,
+// and it's a recent corroborating layer rather than a 6-month backfill. Opt-in
+// via FIRMS_MAP_KEY; window controlled by FIRMS_DAYS (default 14).
+async function runThermal(now: Date): Promise<void> {
+  const key = process.env.FIRMS_MAP_KEY;
+  if (!key) {
+    console.log("thermal[firms] skipped — FIRMS_MAP_KEY not set");
+    return;
+  }
+  const days = Number(process.env.FIRMS_DAYS ?? 14);
+  const from = new Date(now.getTime() - days * 86400000);
+  const source = new FirmsThermalSource(key);
+  const runId = await startRun(`thermal:${source.name}`);
+  try {
+    const rows = await source.fetchThermal(from, now);
+    const counts = await ingestThermal(rows);
+    await finishRun(runId, {
+      status: "success",
+      recordsSeen: counts.seen,
+      recordsInserted: counts.inserted,
+      recordsSkipped: counts.skipped,
+    });
+    console.log(`thermal[firms] seen=${counts.seen} inserted=${counts.inserted}`);
+  } catch (err) {
+    await finishRun(runId, {
+      status: "failure",
+      message: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
+}
+
 async function main() {
   const mode = process.env.INGEST_MODE ?? "backfill";
   const months = Number(process.env.BACKFILL_MONTHS ?? 6);
@@ -99,6 +132,7 @@ async function main() {
 
   await runControl(from, now);
   await runEvents(from, now);
+  await runThermal(now);
 
   await pool.end();
   console.log("ingest complete.");

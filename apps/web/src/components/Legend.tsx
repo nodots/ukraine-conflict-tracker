@@ -16,6 +16,7 @@ export interface LayerToggles {
   frontline: boolean;
   strikes: boolean;
   heatmap: boolean;
+  thermal: boolean;
 }
 
 export interface LegendProps {
@@ -47,6 +48,7 @@ export function Legend({ toggles, onToggle }: LegendProps) {
         <LayerSwitch label="Frontline" on={toggles.frontline} onChange={() => onToggle("frontline")} />
         <LayerSwitch label="Strikes" on={toggles.strikes} onChange={() => onToggle("strikes")} />
         <LayerSwitch label="Strike heatmap" on={toggles.heatmap} onChange={() => onToggle("heatmap")} />
+        <LayerSwitch label="Thermal/fires (FIRMS)" on={toggles.thermal} onChange={() => onToggle("thermal")} />
       </Stack>
 
       <Typography variant="overline" color="text.secondary" sx={{ mt: 1, display: "block" }}>

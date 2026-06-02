@@ -10,7 +10,7 @@ const querySchema = z.object({
 });
 
 // GET /api/stats?from&to — summary counts for the selected window: strikes by
-// type, total fatalities, and net RU territory change across the window.
+// type, total fatalities, and net UA territory change across the window.
 statsRouter.get("/", async (req, res, next) => {
   try {
     const q = querySchema.parse(req.query);
@@ -32,22 +32,22 @@ statsRouter.get("/", async (req, res, next) => {
       totalFatalities += r.deaths;
     }
 
-    // RU controlled area at the snapshot on/before `from` and on/before `to`.
-    const ruArea = async (d: string): Promise<number | null> => {
+    // UA controlled area at the snapshot on/before `from` and on/before `to`.
+    const uaArea = async (d: string): Promise<number | null> => {
       const { rows } = await pool.query(
         `SELECT area_sq_km
            FROM control_areas
-          WHERE faction = 'RU' AND as_of_date <= $1
+          WHERE faction = 'UA' AND as_of_date <= $1
           ORDER BY as_of_date DESC
           LIMIT 1`,
         [d],
       );
       return rows[0]?.area_sq_km ?? null;
     };
-    const ruFrom = await ruArea(q.from);
-    const ruTo = await ruArea(q.to);
-    const netTerritoryChangeRuSqKm =
-      ruFrom !== null && ruTo !== null ? ruTo - ruFrom : null;
+    const uaFrom = await uaArea(q.from);
+    const uaTo = await uaArea(q.to);
+    const netTerritoryChangeUaSqKm =
+      uaFrom !== null && uaTo !== null ? uaTo - uaFrom : null;
 
     res.json({
       from: q.from,
@@ -55,7 +55,7 @@ statsRouter.get("/", async (req, res, next) => {
       totalEvents,
       byType: byTypeMap,
       totalFatalities,
-      netTerritoryChangeRuSqKm,
+      netTerritoryChangeUaSqKm,
     });
   } catch (err) {
     next(err);

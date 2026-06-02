@@ -3,6 +3,7 @@ import type {
   EventFeatureCollection,
   FrontlineFeature,
   StatsResponse,
+  ThermalFeatureCollection,
   TimelineResponse,
 } from "@ukraine-tracker/shared";
 
@@ -57,6 +58,16 @@ export function fetchFrontline(
   signal?: AbortSignal,
 ): Promise<FrontlineFeature & { geometry: unknown }> {
   return request(`/frontline?date=${date}`, signal);
+}
+
+export function fetchThermal(
+  params: { from?: string; to?: string },
+  signal?: AbortSignal,
+): Promise<ThermalFeatureCollection> {
+  const q = new URLSearchParams();
+  if (params.from) q.set("from", params.from);
+  if (params.to) q.set("to", params.to);
+  return request<ThermalFeatureCollection>(`/thermal?${q.toString()}`, signal);
 }
 
 export function fetchStats(

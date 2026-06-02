@@ -15,6 +15,13 @@
       "when": 1780256538341,
       "tag": "0001_broken_kat_farrell",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780419162711,
+      "tag": "0002_worthless_sauron",
+      "breakpoints": true
     }
   ]
 }
