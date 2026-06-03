@@ -5,8 +5,10 @@ export const timelineRouter = Router();
 
 // GET /api/timeline — the available date range plus per-day event counts and
 // per-faction controlled area. Drives the time-slider ticks and the
-// territory-over-time sparkline. Days are the union of dates that have either
-// events or control snapshots.
+// territory-over-time sparkline. Days are the union of dates that have any
+// layer — events, control snapshots, or thermal anomalies — so a day carried
+// only by the thermal layer (e.g. today, before slower sources publish) is
+// still reachable on the slider.
 timelineRouter.get("/", async (_req, res, next) => {
   try {
     const { rows } = await pool.query(
@@ -23,10 +25,15 @@ timelineRouter.get("/", async (_req, res, next) => {
          SELECT as_of_date AS d, area_sq_km
            FROM control_areas WHERE faction = 'UA'
        ),
+       thermal_days AS (
+         SELECT DISTINCT date_trunc('day', detected_at)::date AS d
+           FROM thermal_anomalies
+       ),
        all_days AS (
          SELECT d FROM event_days
          UNION SELECT d FROM ru
          UNION SELECT d FROM ua
+         UNION SELECT d FROM thermal_days
        )
        SELECT a.d AS date,
               COALESCE(e.n, 0) AS event_count,

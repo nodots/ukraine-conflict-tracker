@@ -77,10 +77,12 @@ services:
       CONTROL_SOURCE: deepstate-github
       FIRMS_MAP_KEY: ${FIRMS_MAP_KEY:-}
       FIRMS_DAYS: "14"
-      INGEST_INTERVAL: ${INGEST_INTERVAL:-86400}
+      # Fixed UTC wall-clock time for the daily run, anchored after GDELT's
+      # ~06:00 UTC publish so each run captures the day that just ended.
+      INGEST_TIME_UTC: ${INGEST_TIME_UTC:-07:30}
       NODE_OPTIONS: --max-old-space-size=2048
-    # Run once on start, then on the interval. ($$ escapes compose interpolation.)
-    command: sh -c "while true; do pnpm --filter @ukraine-tracker/worker ingest || true; sleep $$INGEST_INTERVAL; done"
+    # Ingest once on start, then daily at INGEST_TIME_UTC (see script header).
+    command: sh scripts/worker-loop.sh
 
   web:
     build:
