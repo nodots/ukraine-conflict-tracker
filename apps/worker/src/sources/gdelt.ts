@@ -36,35 +36,36 @@ function inUkraine(lon: number, lat: number): boolean {
 const RU_MARKERS = /\b(russian|kremlin|putin)\b/;
 const UA_MARKERS = /\b(ukrainian|zelensky|zelenskyy)\b/;
 
-// Attribute the attacker, preferring signals in the source over geography.
-// GDELT geocoding tells us where a munition landed, not who launched it, so a
-// strike outside Ukraine is NOT necessarily Ukrainian: stray Russian munitions
-// regularly land on NATO/EU/Moldova soil (e.g. drones crashing in Romania).
-// Returns null when no signal supports an attribution — better an empty Actor
-// field than a confident wrong one.
+// Attribute the attacker. Geography is the most reliable signal in this war and
+// must lead: GDELT's per-article actor codes and headline wording are noisy and,
+// if trusted first, mislabel Russian strikes on Ukrainian soil as "Ukraine"
+// (the "Ukraine airstrike inside Ukraine" artifact). Source text is used only
+// to resolve the genuinely ambiguous zone outside Ukraine. Returns null when no
+// signal supports an attribution — an empty Actor field beats a wrong one.
 function attributeActor(
   url: string,
   actor1cc: string,
   lon: number,
   lat: number,
 ): string | null {
-  // 1. Source text: the attacker is usually named in the headline/slug.
+  // 1. A strike that lands inside Ukraine is a Russian attack — authoritative,
+  //    and it overrides the noisy text/actor signals below. (The rare Ukrainian
+  //    strike on Russian-occupied UA soil is accepted as labeled Russia here;
+  //    that is far less wrong than trusting GDELT to say "Ukraine".)
+  if (inUkraine(lon, lat)) return "Russia";
+  // 2. Outside Ukraine, name the attacker from the source text when it clearly
+  //    identifies exactly one side (a Ukrainian deep strike into Russia, or a
+  //    "russian drone" that strayed onto NATO/EU/Moldova soil).
   const u = url.toLowerCase();
   const ru = RU_MARKERS.test(u);
   const ua = UA_MARKERS.test(u);
   if (ru && !ua) return "Russia";
   if (ua && !ru) return "Ukraine";
-  // 2. GDELT's structured initiator (Actor1 acts on Actor2). The country codes
-  //    are far more reliable than its free-text actor names, though still noisy.
+  // 3. Then GDELT's structured initiator (Actor1 acts on Actor2). The country
+  //    codes are more reliable than its free-text actor names, though noisy.
   if (actor1cc === "RUS") return "Russia";
   if (actor1cc === "UKR") return "Ukraine";
-  // 3. Geography, only where it's unambiguous: a strike inside Ukraine is
-  //    Russian (Ukraine does not strike its own unoccupied territory; the rare
-  //    strike on Russian-occupied UA soil is caught by the text rule above).
-  if (inUkraine(lon, lat)) return "Russia";
-  // 4. Outside Ukraine with no textual or structured signal: unknown. Don't
-  //    guess "Ukraine" — that is exactly what mislabeled the stray-munition
-  //    strikes on NATO/EU/Moldova soil.
+  // 4. No reliable signal — leave unattributed rather than guess.
   return null;
 }
 
