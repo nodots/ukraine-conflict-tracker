@@ -77,6 +77,9 @@ services:
       CONTROL_SOURCE: deepstate-github
       FIRMS_MAP_KEY: ${FIRMS_MAP_KEY:-}
       FIRMS_DAYS: "14"
+      # Not in the daily EVENT_SOURCE above; passed through so the occasional
+      # one-shot UCDP refresh (see header) inherits the token.
+      UCDP_API_TOKEN: ${UCDP_API_TOKEN:-}
       # Fixed UTC wall-clock time for the daily run, anchored after GDELT's
       # ~06:00 UTC publish so each run captures the day that just ended.
       INGEST_TIME_UTC: ${INGEST_TIME_UTC:-07:30}
